@@ -1,1 +1,0 @@
-export default function Home() { return <div>Clara App</div> }
