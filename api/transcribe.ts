@@ -1,28 +1,29 @@
-import { NextResponse } from "next/server"
+/// <reference types="node" />
+import { Buffer } from 'buffer';
+import type { NextApiRequest, NextApiResponse } from 'next';
 
-export const runtime = "edge"
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const apiKey = process.env.OPENAI_API_KEY;
 
-export async function POST(req: Request) {
-  const formData = await req.formData()
-  const file = formData.get("audio") as Blob
+  if (!apiKey) {
+    return res.status(500).json({ error: 'Missing API key' });
+  }
 
-  const arrayBuffer = await file.arrayBuffer()
-  const buffer = Buffer.from(arrayBuffer)
+  const audioBase64 = req.body.audioBase64;
 
-  const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
-    method: "POST",
+  const audioBuffer = Buffer.from(audioBase64, 'base64');
+  const formData = new FormData();
+  formData.append('file', new Blob([audioBuffer]), 'audio.webm');
+  formData.append('model', 'whisper-1');
+
+  const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    method: 'POST',
     headers: {
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY!}`
+      Authorization: `Bearer ${apiKey}`
     },
-    body: (() => {
-      const fd = new FormData()
-      fd.append("file", new Blob([buffer]), "audio.webm")
-      fd.append("model", "whisper-1")
-      fd.append("language", "es")
-      return fd
-    })()
-  })
+    body: formData
+  });
 
-  const data = await response.json()
-  return NextResponse.json({ text: data.text })
+  const data = await response.json();
+  res.status(200).json(data);
 }
